@@ -73,9 +73,42 @@ img {
 </div>
 <div id="data-preparation" class="section level1">
 <h1>Data preparation</h1>
+<pre class="r"><code>library(dplyr)
+library(parallel)
+library(doParallel)
+library(ggplot2)
+library(caret)
+train &lt;- read.csv(&quot;pml-training.csv&quot;,h=T)
+test &lt;- read.csv(&quot;pml-testing.csv&quot;,h=T)
+
+indx &lt;- grep(&quot;kurtosis_|skewness_|max_|min_|amplitude_|var_|avg_|stddev_|timestamp&quot;,names(train))
+train &lt;- train[,-indx]
+train &lt;- train[,-1]
+
+indx &lt;- grep(&quot;kurtosis_|skewness_|max_|min_|amplitude_|var_|avg_|stddev_|timestamp&quot;,names(test))
+test &lt;- test[,-indx]
+
+#create a validation set to test model performance
+set.seed(3433)
+valindx &lt;- createDataPartition(train$classe,p=0.80)[[1]]
+train &lt;- train[valindx,]
+val &lt;- train[-valindx,]
+
+indx &lt;- grep(&quot;kurtosis_|skewness_|max_|min_|amplitude_|var_|avg_|stddev_|timestamp&quot;,names(test))
+test &lt;- test[,-indx]</code></pre>
 </div>
 <div id="analysis" class="section level1">
 <h1>Analysis</h1>
+<pre class="r"><code>cluster &lt;- makeCluster(detectCores() - 1) # convention to leave 1 core for OS
+registerDoParallel(cluster)
+
+fitControl &lt;- trainControl(method = &quot;cv&quot;, number = 10, allowParallel = TRUE)
+x &lt;- train[,-56]
+y &lt;- train[,56]</code></pre>
+<pre class="r"><code>set.seed(2344)
+modrf &lt;- train(x,y,data=train,method=&quot;rf&quot;,trainControl=fitControl)</code></pre>
+<pre class="r"><code>modrfPCA &lt;- train(x,y,data=train, method=&quot;rf&quot;, preProcess=&quot;pca&quot;, trainControl=fitControl)</code></pre>
+<pre class="r"><code>stopCluster(cluster)</code></pre>
 <p>This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <a href="http://rmarkdown.rstudio.com" class="uri">http://rmarkdown.rstudio.com</a>.</p>
 <p>When you click the <strong>Knit</strong> button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:</p>
 <pre class="r"><code>summary(cars)</code></pre>

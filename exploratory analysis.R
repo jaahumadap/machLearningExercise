@@ -9,18 +9,37 @@ library(doParallel)
 library(ggplot2)
 library(caret)
 indx <- grep("kurtosis_|skewness_|max_|min_|amplitude_|var_|avg_|stddev_|timestamp",names(train))
-train2 <- train[,-indx]
-train2 <- train2[,-1]
+train <- train[,-indx]
+train <- train[,-1]
 ##train3 <- filter(train, new_window=="yes")
 
 #create a validation set to test model performance
-valindx <- createDataPartition(train2$classe,p=0.80)[[1]]
-train <- train2[valindx,]
-val <- train2[-valindx,]
+valindx <- createDataPartition(train$classe,p=0.80)[[1]]
+train <- train[valindx,]
+val <- train[-valindx,]
 indx <- grep("kurtosis_|skewness_|max_|min_|amplitude_|var_|avg_|stddev_|timestamp",names(test))
-test2 <- test[,-indx]
+test <- test[,-indx]
 #tests
 
+library(parallel)
+library(doParallel)
+cluster <- makeCluster(detectCores() - 1) # convention to leave 1 core for OS
+registerDoParallel(cluster)
 
 
-modrf <- train(classe ~ ., preProc=c("pca"),data=train2,method="rf")
+
+fitControl <- trainControl(method = "cv",
+                           number = 15,
+                           allowParallel = TRUE)
+
+x <- train[,-56]
+y <- train[,56]
+
+system.time(modrf <- train(x,y,data=train,method="rf",trainControl = fitControl))
+
+modrfPCA <- train(x,y,data=train,method="rf", preProcess="pca", trainControl = fitControl)
+
+
+stop
+modgbm <- train(x,y,data=train,method="gbm",verbose=FALSE) #did not work
+modbboost <- train(x,y,data=train,method="blackboost")

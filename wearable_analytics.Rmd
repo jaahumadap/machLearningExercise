@@ -8,10 +8,55 @@ output: html_document
 #Problem Statement
 
 #Data preparation
+```{r,message=FALSE}
+library(dplyr)
+library(parallel)
+library(doParallel)
+library(ggplot2)
+library(caret)
+train <- read.csv("pml-training.csv",h=T)
+test <- read.csv("pml-testing.csv",h=T)
+
+indx <- grep("kurtosis_|skewness_|max_|min_|amplitude_|var_|avg_|stddev_|timestamp",names(train))
+train <- train[,-indx]
+train <- train[,-1]
+
+indx <- grep("kurtosis_|skewness_|max_|min_|amplitude_|var_|avg_|stddev_|timestamp",names(test))
+test <- test[,-indx]
+
+#create a validation set to test model performance
+set.seed(3433)
+valindx <- createDataPartition(train$classe,p=0.80)[[1]]
+train <- train[valindx,]
+val <- train[-valindx,]
+
+indx <- grep("kurtosis_|skewness_|max_|min_|amplitude_|var_|avg_|stddev_|timestamp",names(test))
+test <- test[,-indx]
+```
 
 #Analysis
-```{r, cache=TRUE}
+
+```{r,message=FALSE}
+cluster <- makeCluster(detectCores() - 1) # convention to leave 1 core for OS
+registerDoParallel(cluster)
+
+fitControl <- trainControl(method = "cv", number = 10, allowParallel = TRUE)
+x <- train[,-56]
+y <- train[,56]
 ```
+
+```{r, cache=TRUE, message=FALSE}
+set.seed(2344)
+modrf <- train(x,y,data=train,method="rf",trainControl=fitControl)
+```
+
+```{r, cache=TRUE,message=FALSE}
+modrfPCA <- train(x,y,data=train, method="rf", preProcess="pca", trainControl=fitControl)
+```
+```{r}
+stopCluster(cluster)
+```
+
 This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
 
 When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
