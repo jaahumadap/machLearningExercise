@@ -40,6 +40,6 @@ system.time(modrf <- train(x,y,data=train,method="rf",trainControl = fitControl)
 modrfPCA <- train(x,y,data=train,method="rf", preProcess="pca", trainControl = fitControl)
 
 
-stop
+stopCluster(cluster)
 modgbm <- train(x,y,data=train,method="gbm",verbose=FALSE) #did not work
 modbboost <- train(x,y,data=train,method="blackboost")
