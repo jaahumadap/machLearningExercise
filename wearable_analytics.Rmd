@@ -2,7 +2,9 @@
 title: "WearableAnalytics"
 author: "Jorge A. Ahumada"
 date: "February 19, 2016"
-output: html_document
+output: 
+  html_document: 
+    fig_caption: yes
 ---
 
 #Problem Statement
@@ -36,42 +38,24 @@ test <- test[,-indx]
 
 #Analysis
 
-```{r,message=FALSE}
+```{r,message=FALSE, eval=FALSE}
 cluster <- makeCluster(detectCores() - 1) # convention to leave 1 core for OS
 registerDoParallel(cluster)
 
 fitControl <- trainControl(method = "cv", number = 10, allowParallel = TRUE)
-x <- train[,-56]
+x <- train[,-c(3,56)]
 y <- train[,56]
 ```
 
-```{r, cache=TRUE, message=FALSE}
+```{r, cache=TRUE, message=FALSE, eval= FALSE}
 set.seed(2344)
 modrf <- train(x,y,data=train,method="rf",trainControl=fitControl)
 ```
 
-```{r, cache=TRUE,message=FALSE}
+```{r, cache=TRUE,message=FALSE, eval=FALSE}
 modrfPCA <- train(x,y,data=train, method="rf", preProcess="pca", trainControl=fitControl)
 ```
-```{r}
+```{r, eval=FALSE}
 stopCluster(cluster)
 ```
 
-```{r}
-modlda <- train(x,y,data=train, method="lda")
-```
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r}
-summary(cars)
-```
-
-You can also embed plots, for example:
-
-```{r, echo=FALSE}
-plot(cars)
-```
-
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
