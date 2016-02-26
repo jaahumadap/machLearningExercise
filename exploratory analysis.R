@@ -10,8 +10,8 @@ library(doParallel)
 library(ggplot2)
 library(caret)
 indx <- grep("kurtosis_|skewness_|max_|min_|amplitude_|var_|avg_|stddev_|timestamp",names(train))
-train <- train[,-indx]
-train <- train[,-1]
+train <- train[,-c(indx,1,6,7)]
+#train <- train[,-1]
 ##train3 <- filter(train, new_window=="yes")
 
 #create a validation set to test model performance
@@ -19,7 +19,7 @@ valindx <- createDataPartition(train$classe,p=0.80)[[1]]
 train <- train[valindx,]
 val <- train[-valindx,]
 indx <- grep("kurtosis_|skewness_|max_|min_|amplitude_|var_|avg_|stddev_|timestamp",names(test))
-test <- test[,-c(1,indx)]
+test <- test[,-c(indx,1,6,7)]
 #tests
 
 library(parallel)
@@ -27,6 +27,7 @@ library(doParallel)
 cluster <- makeCluster(detectCores() - 1) # convention to leave 1 core for OS
 registerDoParallel(cluster)
 
+fitControl <- trainControl(allowParallel = TRUE)
 
 
 fitControl <- trainControl(method = "cv",
@@ -42,8 +43,8 @@ modrfPCA <- train(x,y,data=train,method="rf", preProcess="pca", trainControl = f
 
 
 stopCluster(cluster)
-modgbm2 <- train(classe ~ ., data=train[,-c(2,3)], method="gbm",verbose=FALSE) #did not work
-modgbmPCA <- train(classe ~ ., data=train[,-c(2,3)], method="gbm",verbose=FALSE, preProcess = "pca")
+modgbm <- train(classe ~ ., data=train, method="gbm",verbose=FALSE)
+modgbmPCA <- train(classe ~ ., data=train, method="gbm",verbose=FALSE, preProcess = "pca")
 
 # Display the results
 results <- resamples(list(RF=modrf, RF_PCA=modrfPCA, GBM = modgbm, GBM_PCA = modgbmPCA))
@@ -68,5 +69,5 @@ predgbmPCA <- predict(modgbmPCA, val)
 confusionMatrix(predgbmPCA,val$classe)
 
 #generate new predictions for test data set
-preds <- predict(modrf, test[,-56])
-data.frame(problem_id=test[,56], prediction=preds)
+preds <- predict(modrf, test[,-54])
+data.frame(problem_id=test[,54], prediction=preds)

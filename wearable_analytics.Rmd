@@ -3,59 +3,120 @@ title: "WearableAnalytics"
 author: "Jorge A. Ahumada"
 date: "February 19, 2016"
 output: 
-  html_document: 
-    fig_caption: yes
+  html_document 
 ---
 
 #Problem Statement
+Wearable sensors are now ubiquitous and they generate huge amounts of information that could improve people's health. One issue that wearable sensors can solve is the potential to check not only if people are excercising or not, but whether particular exercises are done appropiately (excercise quality). This analysis uses wearable sensor data coming from 6 individuals to check whether sensor variables can predict exercise quality. These individuals were asked to perform barbell lifts correctly and incorrectly in 5 different ways. Given a training data set and a test set, the goal of the analysis is to predict the quality of exercise for 20 records of predictors (test data set) using machine learning algorithms. Based on my analysis, I conclude that a random forest algorithm is the best suited to predict with high accuracy the exercise type for these 20 cases.
 
 #Data preparation
+The training and testing data sets were downloaded [here]( https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv) and [here](https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv) respectively. After examination of both data sets several variables (columns) were removed because they were summaries of other variables calculated over a range of records or were non-informative. These were all the variables that started with *kurtosis*, *skewness*, *max*, *min*, *amplitude*, *var*, *avg*, and *stddev*, *X*, *timestamp*, *new_window*, and *num_window*. The code to do this for both the training and test data sets is found below:
+
 ```{r,message=FALSE}
-library(dplyr)
-library(parallel)
-library(doParallel)
-library(ggplot2)
-library(caret)
+library(plyr); library(dplyr); library(parallel);library(doParallel)
+library(ggplot2); library(caret)
+
+#Load train & test data sets
 train <- read.csv("pml-training.csv",h=T)
 test <- read.csv("pml-testing.csv",h=T)
 
+#Clean up variables that will not be used
 indx <- grep("kurtosis_|skewness_|max_|min_|amplitude_|var_|avg_|stddev_|timestamp",names(train))
-train <- train[,-indx]
-train <- train[,-1]
+train <- train[,-c(indx,1,6,7)]
 
 indx <- grep("kurtosis_|skewness_|max_|min_|amplitude_|var_|avg_|stddev_|timestamp",names(test))
-test <- test[,-indx]
+test <- test[,-c(indx,1,6,7)]
+```
+To test the performance of the models, before applying them to the test data set, I created a validation data set from the training set by additionally partitioning the training data into 80% training and 20% validation:
 
+```{r, message=FALSE}
 #create a validation set to test model performance
 set.seed(3433)
 valindx <- createDataPartition(train$classe,p=0.80)[[1]]
 train <- train[valindx,]
 val <- train[-valindx,]
-
-indx <- grep("kurtosis_|skewness_|max_|min_|amplitude_|var_|avg_|stddev_|timestamp",names(test))
-test <- test[,-indx]
 ```
 
 #Analysis
+After considering several machine learning algorithms, I settled on two classification algorithms: random forests and generalized boosting models. I fitted two models for each of these, one with Principal Component Analysis preprocessing and one without. Given the size of the data set and the number of variables, I used tunning and the **parallel** package to take advantage of multiple cores in my computer (7 in total). The commands below describe the setup for fine tunning and parallel processing these model runs:
 
-```{r,message=FALSE, eval=FALSE}
-cluster <- makeCluster(detectCores() - 1) # convention to leave 1 core for OS
-registerDoParallel(cluster)
+```{r,message=FALSE}
+#setup cluster for parallel processing
+clt <- makeCluster(detectCores() - 1)
+registerDoParallel(clt)
 
+#Tune algortihm for better performance
 fitControl <- trainControl(method = "cv", number = 10, allowParallel = TRUE)
-x <- train[,-c(3,56)]
-y <- train[,56]
-```
 
-```{r, cache=TRUE, message=FALSE, eval= FALSE}
+# Use x,y notation instead of formula to increase speed
+x <- train[,-54]
+y <- train[,54]
+```
+As mentioned above two random forest models (with and without PCA preprocessing) and two generalized boosting models (*ibid*) where run to predict exercise type (*classe* variable) from 52 predictors:
+
+```{r, cache=TRUE, message=FALSE}
 set.seed(2344)
+#Fit a random forest model to predict classe
 modrf <- train(x,y,data=train,method="rf",trainControl=fitControl)
 ```
 
-```{r, cache=TRUE,message=FALSE, eval=FALSE}
+```{r, cache=TRUE,message=FALSE}
+#Fit a random forest model with Principal Component reduction
 modrfPCA <- train(x,y,data=train, method="rf", preProcess="pca", trainControl=fitControl)
 ```
-```{r, eval=FALSE}
-stopCluster(cluster)
+
+```{r, cache=TRUE, message=FALSE}
+# Fit a Generalized Boosted Model to predict classe
+modgbm <- train(classe ~ ., data=train, method="gbm",verbose=FALSE) 
+
+# Fit a Generalized Boosted Model with PCA preproccesing
+modgbmPCA <- train(classe ~ ., data=train, method="gbm",verbose=FALSE,
+                   preProcess = "pca")
+```
+I examined the cross-validation accuracy for each model by plotting the distribution of the accuracies from the resampled iterations:
+```{r}
+# Display the results
+results <- resamples(list(RF=modrf, RF_PCA=modrfPCA, GBM = modgbm, GBM_PCA = modgbmPCA))
+bwplot(results)
+```
+It is clear from this figure that the random forest models (RF & RF\_PCA) have a much higher accuracy than any of the generalized boosting models (GBM and GBM\_PCA). The GBM\_PCA has the lowest accuracy while the other three models are between 95-99%. 
+
+Next, I validated each model by predicting the *classe* variable in the validation data set and calculating the accuracy:
+
+```{r, message=FALSE}
+#Random forest
+predrf <- predict(modrf, val)
+confusionMatrix(predrf,val$classe)$overall
+
+#Random forest with PCA
+predrfPCA <- predict(modrfPCA, val)
+confusionMatrix(predrfPCA,val$classe)$overall
+
+#GBM
+predgbm <- predict(modgbm, val)
+confusionMatrix(predgbm,val$classe)$overall
+
+#GBM with PCA
+predgbmPCA <- predict(modgbmPCA, val)
+confusionMatrix(predgbmPCA,val$classe)$overall
 ```
 
+This confirms that the random forest models perform much better than any of the generalized boosting models. Given the slightly better cross validation accuracy of the random forest model **without** preprocessing (`r mean(results$values[,2])`) compared to the one **with** preprocessing (`r mean(results$values[,4])`), I choose the former to generate predictions for the 20 test observations:
+
+```{r, message=FALSE}
+#generate new predictions for test data set
+preds <- predict(modrf, test[,-54])
+data.frame(problem_id=test[,54], prediction=preds)
+```
+
+#Conclusion
+A random forest model without preprocessing that uses 53 predictor variables has a 99% accuracy, and thus a high chance of predicting exercise quality. The implications for this are key to better understand and verify not only how much people exercise, but whether they do it correctly or not.
+```{r,echo=FALSE}
+#Unregister all parallel processes
+stopCluster(clt)
+unregister <- function() {
+  env <- foreach:::.foreachGlobals
+  rm(list=ls(name=env), pos=env)
+}
+unregister()
+```
