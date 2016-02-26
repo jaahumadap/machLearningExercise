@@ -1,5 +1,4 @@
 # machLearningExercise
-Project to solve machine learning problem - Coursera
+##Project to solve machine learning problem - Coursera
 
-Testing some ideas here.
-Lots of predictors.
+Wearable sensors are now ubiquitous and they generate huge amounts of information that could improve people's health. One issue that wearable sensors can solve is the potential to check not only if people are excercising or not, but whether particular exercises are done appropiately (excercise quality). This analysis uses wearable sensor data coming from 6 individuals to check whether sensor variables can predict exercise quality. These individuals were asked to perform barbell lifts correctly and incorrectly in 5 different ways. Given a training data set and a test set, the goal of the analysis is to predict the quality of exercise for 20 records of predictors (test data set) using machine learning algorithms. Based on my analysis, I conclude that a random forest algorithm is the best suited to predict with high accuracy the exercise type for these 20 cases.
